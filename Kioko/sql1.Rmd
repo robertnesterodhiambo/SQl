@@ -1,0 +1,526 @@
+---
+editor_options:
+  markdown:
+    wrap: 72
+output:
+  html_document:
+    toc: true
+    df_print: paged
+  pdf_document:
+    toc: true
+    fig_width: 2
+---
+
+# Question 1
+
+**Question 1 – Conceptual/E-R modelling:** Design a
+conceptual/Entity-Relationship (E-R) model capturing the database
+context. Your model must have all the necessary entities and attributes,
+along with all the relationships and (min, max) cardinalities, according
+to the context. There is room for adjustments and/or extensions
+according to your understanding. Before moving to Question 2, make sure
+your conceptual model is entirely consistent and that no
+entities/attributes/relationships/cardinalities are missing.
+
+### Conceptual E-R Model Design
+
+------------------------------------------------------------------------
+
+#### Entities and Attributes:
+
+1.  **Customer**
+    -   **Attributes**: `Email` (PK), `Name`, `BirthDate`,
+        `PhoneNumber`, `Password`, `Building`, `Street`, `City`,
+        `Country`, `Postcode`
+    -   **Relationships**:
+        -   Has **one or more** payment methods
+        -   Can **have multiple** orders
+        -   Can **have multiple** baskets (wish lists)
+        -   Can **submit multiple** reviews
+        -   Can **have multiple** returns
+2.  **PaymentMethod**
+    -   **Attributes**: `PaymentID` (PK), `Type` (e.g., credit, debit,
+        voucher, gift card)
+    -   **For Credit/Debit**: `CardNumber`, `ExpiryDate`,
+        `VerificationCode`, `NameOnCard`, `IsDefault`
+    -   **For Vouchers/Gift Cards**: `SerialNumber`, `ExpiryDate`,
+        `TotalAmount`, `CurrentBalance`
+    -   **Relationships**:
+        -   Belongs to **one** customer, with **optional** relationship
+            for vouchers/gift cards as payment methods
+3.  **Product**
+    -   **Attributes**: `ProductNumber` (PK), `Name`, `Description`,
+        `Brand`, `Color`, `Dimensions`, `Weight`, `Price`,
+        `WarrantyPeriod`, `Category`, `Stock`
+    -   **Relationships**:
+        -   Can be part of **multiple** baskets
+        -   Can be part of **multiple** orders
+        -   Can have **multiple** reviews
+4.  **Basket** (represents a customer’s wish list)
+    -   **Attributes**: `BasketID` (PK), `CustomerEmail` (FK from
+        Customer)
+    -   **Relationships**:
+        -   Contains **one or more** products
+        -   Associated with **one** customer
+5.  **Order**
+    -   **Attributes**: `OrderNumber` (PK), `OrderDate`, `Subtotal`,
+        `Total`, `Discount`, `GrandTotal`, `PaymentID` (FK from
+        PaymentMethod)
+    -   **Relationships**:
+        -   Belongs to **one** customer
+        -   Contains **one or more** products with quantities
+        -   Has **one** delivery
+6.  **Order_Product** (junction table for Order and Product)
+    -   **Attributes**: `OrderID` (FK from Order), `ProductID` (FK from
+        Product), `Quantity`, `Subtotal`
+    -   **Relationships**:
+        -   Each row connects a specific order to a specific product
+7.  **Delivery**
+    -   **Attributes**: `TrackNumber` (PK), `OrderNumber` (FK from
+        Order), `DeliveryDate`, `Status`, `DeliveryAddress`
+    -   **Relationships**:
+        -   Associated with **one** order
+8.  **Review**
+    -   **Attributes**: `ReviewID` (PK), `ReviewDate`, `CustomerEmail`
+        (FK from Customer), `ProductNumber` (FK from Product),
+        `ReviewText`, `Rating`
+    -   **Relationships**:
+        -   Each review is linked to **one** product and **one**
+            customer
+9.  **Return**
+    -   **Attributes**: `TicketNumber` (PK), `OrderNumber` (FK from
+        Order), `StartDate`, `DueDate`, `RefundTotal`, `Status`
+    -   **Relationships**:
+        -   Each return is linked to **one** order and may involve **one
+            or more** products
+
+# Question 2
+
+**Question 2 – Relational modelling:** design a relational model based
+on your conceptual/E-R model. Ensure your relational model includes
+entities and attributes appearing on your conceptual model, along with
+all relationships. Make sure all cardinalities were properly transposed
+from your conceptual model (tip: revise the lecture materials and any
+other sources related to how one-to-one, one-to-many, and many-to-many
+relationships are mapped into relational schemas). Make sure all foreign
+keys are in place and that all attributes have a proper data type.
+Double-check your relational model before creating your database.
+
+### Relational Model
+
+------------------------------------------------------------------------
+
+#### 1. **Customers**
+
+``` sql
+CREATE TABLE Customers (
+    Email VARCHAR(255) PRIMARY KEY,
+    Name VARCHAR(255) NOT NULL,
+    BirthDate DATE,
+    PhoneNumber VARCHAR(20),
+    Password VARCHAR(255) NOT NULL,
+    Building VARCHAR(255),
+    Street VARCHAR(255) NOT NULL,
+    City VARCHAR(100) NOT NULL,
+    Country VARCHAR(100) NOT NULL,
+    Postcode VARCHAR(20) NOT NULL
+);
+```
+
+#### 2. **PaymentMethods**
+
+``` sql
+CREATE TABLE PaymentMethods (
+    PaymentID INT PRIMARY KEY AUTO_INCREMENT,
+    CustomerEmail VARCHAR(255),
+    Type ENUM('Credit/Debit', 'Voucher/Gift Card') NOT NULL,
+    CardNumber VARCHAR(20),  -- Applicable for Credit/Debit
+    ExpiryDate DATE,         -- Applicable for Credit/Debit
+    VerificationCode VARCHAR(4),  -- Applicable for Credit/Debit
+    NameOnCard VARCHAR(255),  -- Applicable for Credit/Debit
+    IsDefault BOOLEAN DEFAULT FALSE,  -- Applicable for Credit/Debit
+    SerialNumber VARCHAR(255),  -- Applicable for Vouchers/Gift Cards
+    VoucherExpiryDate DATE,    -- Applicable for Vouchers/Gift Cards
+    TotalAmount DECIMAL(10, 2),  -- Applicable for Vouchers/Gift Cards
+    CurrentBalance DECIMAL(10, 2),  -- Applicable for Vouchers/Gift Cards
+    FOREIGN KEY (CustomerEmail) REFERENCES Customers(Email)
+);
+```
+
+#### 3. **Products**
+
+``` sql
+CREATE TABLE Products (
+    ProductNumber INT PRIMARY KEY AUTO_INCREMENT,
+    Name VARCHAR(255) NOT NULL,
+    Description TEXT,
+    Brand VARCHAR(100),
+    Color VARCHAR(50),
+    Dimensions VARCHAR(50),  -- Format: D x W x H
+    Weight DECIMAL(10, 2),
+    Price DECIMAL(10, 2) NOT NULL,
+    WarrantyPeriod INT,  -- In days/months/years
+    Category VARCHAR(100),
+    Stock INT NOT NULL CHECK (Stock >= 0)  -- Ensures stock can't be negative
+);
+```
+
+#### 4. **Baskets**
+
+``` sql
+CREATE TABLE Baskets (
+    BasketID INT PRIMARY KEY AUTO_INCREMENT,
+    CustomerEmail VARCHAR(255),
+    FOREIGN KEY (CustomerEmail) REFERENCES Customers(Email)
+);
+```
+
+#### 5. **Basket_Products** (junction table for Baskets and Products)
+
+``` sql
+CREATE TABLE Basket_Products (
+    BasketID INT,
+    ProductNumber INT,
+    Quantity INT NOT NULL CHECK (Quantity > 0),
+    PRIMARY KEY (BasketID, ProductNumber),
+    FOREIGN KEY (BasketID) REFERENCES Baskets(BasketID),
+    FOREIGN KEY (ProductNumber) REFERENCES Products(ProductNumber)
+);
+```
+
+#### 6. **Orders**
+
+``` sql
+CREATE TABLE Orders (
+    OrderNumber INT PRIMARY KEY AUTO_INCREMENT,
+    OrderDate DATE NOT NULL,
+    Subtotal DECIMAL(10, 2),
+    Total DECIMAL(10, 2) NOT NULL,
+    Discount DECIMAL(10, 2) DEFAULT 0,
+    GrandTotal DECIMAL(10, 2) NOT NULL,
+    PaymentID INT,
+    CustomerEmail VARCHAR(255),
+    FOREIGN KEY (PaymentID) REFERENCES PaymentMethods(PaymentID),
+    FOREIGN KEY (CustomerEmail) REFERENCES Customers(Email)
+);
+```
+
+#### 7. **Order_Products** (junction table for Orders and Products)
+
+``` sql
+CREATE TABLE Order_Products (
+    OrderID INT,
+    ProductNumber INT,
+    Quantity INT NOT NULL CHECK (Quantity > 0),
+    Subtotal DECIMAL(10, 2),
+    PRIMARY KEY (OrderID, ProductNumber),
+    FOREIGN KEY (OrderID) REFERENCES Orders(OrderNumber),
+    FOREIGN KEY (ProductNumber) REFERENCES Products(ProductNumber)
+);
+```
+
+#### 8. **Deliveries**
+
+``` sql
+CREATE TABLE Deliveries (
+    TrackNumber INT PRIMARY KEY AUTO_INCREMENT,
+    OrderNumber INT,
+    DeliveryDate DATE NOT NULL,
+    Status ENUM('Delivered', 'Postponed', 'Cancelled', 'Pending') NOT NULL,
+    DeliveryAddress VARCHAR(255) NOT NULL,
+    FOREIGN KEY (OrderNumber) REFERENCES Orders(OrderNumber)
+);
+```
+
+#### 9. **Reviews**
+
+``` sql
+CREATE TABLE Reviews (
+    ReviewID INT PRIMARY KEY AUTO_INCREMENT,
+    ReviewDate DATE NOT NULL,
+    CustomerEmail VARCHAR(255),
+    ProductNumber INT,
+    ReviewText TEXT,
+    Rating INT CHECK (Rating BETWEEN 1 AND 5),
+    FOREIGN KEY (CustomerEmail) REFERENCES Customers(Email),
+    FOREIGN KEY (ProductNumber) REFERENCES Products(ProductNumber)
+);
+```
+
+#### 10. **Returns**
+
+``` sql
+CREATE TABLE Returns (
+    TicketNumber INT PRIMARY KEY AUTO_INCREMENT,
+    OrderNumber INT,
+    StartDate DATE NOT NULL,
+    DueDate DATE NOT NULL,
+    RefundTotal DECIMAL(10, 2),
+    Status ENUM('Completed', 'Cancelled', 'Denied', 'Pending') NOT NULL,
+    FOREIGN KEY (OrderNumber) REFERENCES Orders(OrderNumber)
+);
+```
+
+![![](images/clipboard-28123898.png)](images/clipboard-28123898.png)
+
+# Question 3
+
+![](images/clipboard-1953993622.png)
+
+# Question 4
+
+### SQL DML Statements
+
+``` sql
+-- Populate Customers
+INSERT INTO Customers (Email, Name, BirthDate, PhoneNumber, Password, Building, Street, City, Country, Postcode) VALUES
+('alice@example.com', 'Alice Smith', '1985-04-12', '555-1234', 'pass123', '1A', 'Main St', 'New York', 'USA', '10001'),
+('bob@example.com', 'Bob Johnson', '1990-06-30', '555-5678', 'pass456', '2B', 'Second St', 'Los Angeles', 'USA', '90001'),
+('carol@example.com', 'Carol White', '1988-01-15', '555-8765', 'pass789', NULL, 'Third St', 'Chicago', 'USA', '60601'),
+('dave@example.com', 'Dave Brown', '1995-11-23', '555-4321', 'pass000', '3C', 'Fourth St', 'Houston', 'USA', '77001'),
+('eve@example.com', 'Eve Davis', '1975-09-05', '555-6789', 'pass111', '4D', 'Fifth St', 'Miami', 'USA', '33101');
+
+-- Populate PaymentMethods
+INSERT INTO PaymentMethods (CustomerEmail, Type, CardNumber, ExpiryDate, VerificationCode, NameOnCard, IsDefault, SerialNumber, VoucherExpiryDate, TotalAmount, CurrentBalance) VALUES
+('alice@example.com', 'Credit Card', '4111111111111111', '2025-12-31', '123', 'Alice Smith', TRUE, NULL, NULL, NULL, NULL),
+('bob@example.com', 'Debit Card', '5500000000000004', '2026-05-30', '456', 'Bob Johnson', FALSE, NULL, NULL, NULL, NULL),
+('carol@example.com', 'Voucher', NULL, NULL, NULL, NULL, FALSE, 'VOU123456', '2024-12-31', 50.00, 20.00),
+('dave@example.com', 'Credit Card', '340000000000009', '2023-11-15', '789', 'Dave Brown', TRUE, NULL, NULL, NULL, NULL);
+
+-- Populate Products
+INSERT INTO Products (Name, Description, Brand, Color, Dimensions, Weight, Price, WarrantyPeriod, Category, Stock) VALUES
+('Office Chair', 'Ergonomic office chair', 'BrandA', 'Black', '24 x 24 x 40', 15.5, 199.99, 2, 'Furniture', 50),
+('Laptop', '15 inch laptop', 'BrandB', 'Silver', '15 x 10 x 1', 5.0, 999.99, 1, 'Electronics', 30),
+('Coffee Maker', 'Automatic drip coffee maker', 'BrandC', 'Red', '12 x 8 x 14', 3.0, 79.99, 1, 'Kitchen', 70),
+('Yoga Mat', 'Non-slip yoga mat', 'BrandD', 'Blue', '72 x 24 x 0.25', 1.0, 29.99, 1, 'Fitness', 100),
+('Novel', 'Bestselling fiction novel', 'BrandE', 'N/A', '6 x 9 x 1', 0.5, 14.99, 1, 'Books', 200);
+
+-- Populate Baskets
+INSERT INTO Baskets (CustomerEmail) VALUES
+('alice@example.com'),
+('bob@example.com'),
+('carol@example.com');
+
+-- Populate Basket_Products
+INSERT INTO Basket_Products (BasketID, ProductNumber, Quantity) VALUES
+(1, 1, 2),  -- Alice's basket
+(1, 2, 1),
+(2, 3, 1),  -- Bob's basket
+(2, 4, 3),
+(3, 1, 1),  -- Carol's basket
+(3, 5, 2);
+
+-- Populate Orders
+INSERT INTO Orders (OrderDate, Subtotal, Total, Discount, GrandTotal, PaymentID, CustomerEmail) VALUES
+('2024-01-10', 399.98, 399.98, 0, 399.98, 1, 'alice@example.com'),
+('2024-01-15', 99.99, 99.99, 0, 99.99, 2, 'bob@example.com'),
+('2024-02-05', 29.99, 29.99, 0, 29.99, 3, 'carol@example.com'),
+('2024-02-20', 199.99, 199.99, 10.00, 189.99, 1, 'dave@example.com');
+
+-- Populate Order_Products
+INSERT INTO Order_Products (OrderID, ProductNumber, Quantity, Subtotal) VALUES
+(1, 1, 1, 199.99),  -- Alice's order
+(1, 2, 1, 199.99),
+(2, 3, 1, 99.99),   -- Bob's order
+(3, 4, 1, 29.99),   -- Carol's order
+(4, 1, 1, 199.99);   -- Dave's order
+
+-- Populate Deliveries
+INSERT INTO Deliveries (OrderNumber, DeliveryDate, Status, DeliveryAddress) VALUES
+(1, '2024-01-12', 'Delivered', '1A Main St, New York, USA, 10001'),
+(2, '2024-01-17', 'Delivered', '2B Second St, Los Angeles, USA, 90001'),
+(3, '2024-02-06', 'Delivered', '3C Third St, Chicago, USA, 60601'),
+(4, '2024-02-22', 'Pending', '4D Fifth St, Miami, USA, 33101');
+
+-- Populate Reviews
+INSERT INTO Reviews (ReviewDate, CustomerEmail, ProductNumber, ReviewText, Rating) VALUES
+('2024-01-20', 'alice@example.com', 1, 'Great chair! Very comfortable.', 5),
+('2024-01-25', 'bob@example.com', 2, 'Decent laptop but a bit heavy.', 3),
+('2024-02-01', 'carol@example.com', 3, 'Makes excellent coffee!', 4),
+('2024-02-15', 'dave@example.com', 1, 'Not as good as I expected.', 2);
+
+-- Populate Returns
+INSERT INTO Returns (OrderNumber, StartDate, DueDate, RefundTotal, Status) VALUES
+(4, '2024-02-23', '2024-03-05', 189.99, 'Pending'), 
+(2, '2024-01-18', '2024-01-25', 99.99, 'Completed');
+
+-- Commit the transaction
+COMMIT;
+```
+
+![](images/clipboard-559115766.png)
+
+![](images/clipboard-348793792.png)
+
+# Question 5
+
+### Question 5.1: Customer Orders with Products and Total Paid
+
+![](images/clipboard-649787352.png)
+
+``` sql
+SELECT 
+    c.Name AS CustomerName,
+    c.Email AS CustomerEmail,
+    o.OrderNumber,
+    o.OrderDate,
+    GROUP_CONCAT(p.Name SEPARATOR ', ') AS Products,
+    o.GrandTotal
+FROM 
+    Customers c
+JOIN 
+    Orders o ON c.Email = o.CustomerEmail
+JOIN 
+    Order_Products op ON o.OrderNumber = op.OrderID
+JOIN 
+    Products p ON op.ProductNumber = p.ProductNumber
+GROUP BY 
+    c.Name, c.Email, o.OrderNumber, o.OrderDate, o.GrandTotal
+ORDER BY 
+    c.Name, o.OrderDate;
+```
+
+### Question 5.2: Customers with Items in Their Baskets
+
+![](images/clipboard-491190684.png)
+
+``` sql
+SELECT 
+    c.Email AS CustomerEmail,
+    c.Name AS CustomerName,
+    c.BirthDate AS Birthday,
+    pm.CurrentBalance AS GiftCardBalance,
+    GROUP_CONCAT(p.Name SEPARATOR ', ') AS ProductsInBasket
+FROM 
+    Customers c
+JOIN 
+    Baskets b ON c.Email = b.CustomerEmail
+JOIN 
+    Basket_Products bp ON b.BasketID = bp.BasketID
+JOIN 
+    Products p ON bp.ProductNumber = p.ProductNumber
+LEFT JOIN 
+    PaymentMethods pm ON c.Email = pm.CustomerEmail
+GROUP BY 
+    c.Email, c.Name, c.BirthDate, pm.CurrentBalance
+HAVING 
+    COUNT(bp.ProductNumber) > 0;  -- Ensure they have items in their basket
+```
+
+### Question 5.3: Top Two Items Sold in Each Category
+
+``` sql
+WITH RankedProducts AS (
+    SELECT 
+        p.Category,
+        p.Name AS ProductName,
+        SUM(op.Quantity) AS TotalSold,
+        ROW_NUMBER() OVER (PARTITION BY p.Category ORDER BY SUM(op.Quantity) DESC) AS Rank
+    FROM 
+        Products p
+    JOIN 
+        Order_Products op ON p.ProductNumber = op.ProductNumber
+    GROUP BY 
+        p.Category, p.Name
+)
+
+SELECT 
+    rp.Category,
+    rp.ProductName,
+    rp.TotalSold
+FROM 
+    RankedProducts rp
+WHERE 
+    rp.Rank <= 2
+ORDER BY 
+    rp.Category, rp.Rank;
+```
+
+### Question 5.4: Month-over-Month Sales Growth
+
+``` sql
+WITH MonthlySales AS (
+    SELECT 
+        YEAR(o.OrderDate) AS SaleYear,
+        MONTH(o.OrderDate) AS SaleMonth,
+        SUM(o.GrandTotal) AS TotalSales
+    FROM 
+        Orders o
+    WHERE 
+        o.OrderDate IS NOT NULL
+    GROUP BY 
+        YEAR(o.OrderDate), MONTH(o.OrderDate)
+),
+SalesGrowth AS (
+    SELECT 
+        ms.SaleYear,
+        ms.SaleMonth,
+        ms.TotalSales,
+        LAG(ms.TotalSales) OVER (ORDER BY ms.SaleYear, ms.SaleMonth) AS PreviousMonthSales
+    FROM 
+        MonthlySales ms
+)
+
+SELECT 
+    SaleYear,
+    SaleMonth,
+    TotalSales,
+    CASE 
+        WHEN PreviousMonthSales IS NULL THEN NULL
+        ELSE (TotalSales - PreviousMonthSales) / PreviousMonthSales * 100 
+    END AS SalesGrowthPercentage
+FROM 
+    SalesGrowth
+ORDER BY 
+    SaleYear, SaleMonth;
+```
+
+### 
+
+# Question 6
+
+### Trigger Definition
+
+![](images/clipboard-4016988002.png)
+
+``` sql
+DELIMITER //
+
+CREATE TRIGGER check_stock_before_insert
+BEFORE INSERT ON orders
+FOR EACH ROW
+BEGIN
+    DECLARE available_stock INT;
+
+    -- Check the available stock for the product
+    SELECT stock INTO available_stock
+    FROM products
+    WHERE product_id = NEW.product_id;
+
+    -- If the ordered quantity exceeds available stock, signal an error
+    IF NEW.quantity > available_stock THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Error: Not enough stock for product ID: ' || NEW.product_id;
+    END IF;
+END;
+
+//
+
+DELIMITER ;
+```
+
+### Query that Passes the Trigger (Normal Situation)
+
+``` sql
+INSERT INTO orders (order_id, product_id, quantity) 
+VALUES (1, 1, 5);
+```
+
+### Query that Violates the Trigger (Error Situation)
+
+``` sql
+INSERT INTO orders (order_id, product_id, quantity) 
+VALUES (2, 1, 15);
+```
+
+### Expected Error Message

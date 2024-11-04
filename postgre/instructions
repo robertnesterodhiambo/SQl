@@ -1,0 +1,26 @@
+To run this file in your comp ensure you cjhane the sql logins to your own and create the db and tables as I have shared
+To run only run project.py place all files in one folder
+
+
+testing code examples
+
+SELECT * 
+FROM customer C
+JOIN orders O ON C.c_custkey = O.o_custkey;
+
+
+SELECT * 
+FROM customer C
+JOIN orders O ON C.c_custkey = O.o_custkey
+WHERE C.c_acctbal > 500;
+
+
+SELECT * 
+FROM customer C
+JOIN orders O ON C.c_custkey = O.o_custkey
+WHERE O.o_orderstatus = 'O';
+
+SELECT C.c_name, O.o_totalprice 
+FROM customer C
+JOIN orders O ON C.c_custkey = O.o_custkey
+ORDER BY O.o_totalprice DESC;
